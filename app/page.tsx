@@ -1,69 +1,215 @@
-import Image from "next/image";
+"use client";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Search,
+  Sun,
+  Moon,
+  Cloud,
+  CloudRain,
+  CloudSnow,
+  CloudLightning,
+  CloudFog,
+  CloudDrizzle,
+  Thermometer,
+  Droplets,
+  Wind,
+} from "lucide-react";
+import { getWeatherData } from "./actions";
+import { useState } from "react";
+import { WeatherData } from "@/types/weather";
+import { Card, CardContent } from "@/components/ui/card";
+
+// قمر مملي من جوا
+function MoonFilled({ className }: { className?: string }) {
+  return <Moon className={className} fill="currentColor" />;
+}
+
+// شمس صفراء + سحابة بيضا
+function CloudSunColored({ className }: { className?: string }) {
+  return (
+    <div className={`relative ${className ?? ""}`}>
+      <Sun className="absolute left-0 top-0 h-3/5 w-3/5 text-yellow-400" />
+      <Cloud
+        className="absolute bottom-0 right-0 h-4/5 w-4/5 text-white"
+        fill="white"
+      />
+    </div>
+  );
+}
+
+// قمر مملي + سحابة بيضا
+function CloudMoonColored({ className }: { className?: string }) {
+  return (
+    <div className={`relative ${className ?? ""}`}>
+      <Moon
+        className="absolute left-0 top-0 h-3/5 w-3/5 text-yellow-200"
+        fill="currentColor"
+      />
+      <Cloud
+        className="absolute bottom-0 right-0 h-4/5 w-4/5 text-white"
+        fill="white"
+      />
+    </div>
+  );
+}
+
+const getWeatherInfo = (code: number, isDay: boolean) => {
+  switch (code) {
+    case 1:
+      return isDay
+        ? { Icon: Sun, description: "Clear sky", color: "text-yellow-400" }
+        : { Icon: MoonFilled, description: "Clear sky", color: "text-yellow-200" };
+    case 2:
+    case 3:
+      return {
+        Icon: isDay ? CloudSunColored : CloudMoonColored,
+        description: code === 2 ? "Partly cloudy" : "Mostly cloudy",
+        color: "",
+      };
+    case 4:
+      return { Icon: Cloud, description: "Overcast", color: "text-white" };
+    case 5:
+      return { Icon: CloudFog, description: "Fog", color: "text-gray-300" };
+    case 6:
+    case 14:
+      return { Icon: CloudRain, description: "Rain", color: "text-blue-600" };
+    case 7:
+    case 12:
+    case 16:
+      return {
+        Icon: CloudDrizzle,
+        description: "Light rain",
+        color: "text-sky-500",
+      };
+    case 8:
+      return {
+        Icon: CloudLightning,
+        description: "Thunderstorms",
+        color: "text-yellow-400",
+      };
+    case 9:
+    case 10:
+    case 11:
+    case 13:
+    case 15:
+    case 17:
+      return { Icon: CloudSnow, description: "Snow", color: "text-cyan-200" };
+    default:
+      return { Icon: Cloud, description: "Unknown", color: "text-white" };
+  }
+};
+
+// بيرجع index الساعة الحالية في توقيت المدينة
+const getCurrentIndex = (w: WeatherData) => {
+  const offset = w.metadata.utc_timeoffset ?? 0;
+  const local =
+    new Date(Date.now() + offset * 3600 * 1000)
+      .toISOString()
+      .slice(0, 13)
+      .replace("T", " ") + ":00";
+  const i = w.data_1h.time.findIndex((t) => t >= local);
+  return i === -1 ? 0 : i;
+};
+
+function SubmitButton() {
+  return (
+    <Button type="submit">
+      <Search className="mr-2 h-4 w-4" />
+    </Button>
+  );
+}
 
 export default function Home() {
+  const [weather, setWeather] = useState<WeatherData | null>(null);
+  const [city, setCity] = useState("");
+  const [notFound, setNotFound] = useState(false);
+
+  const handleSearch = async (formData: FormData) => {
+    const cityName = formData.get("city") as string;
+    const { data } = await getWeatherData(cityName);
+    setWeather(data ?? null);
+    setNotFound(!data);
+    if (data) setCity(cityName);
+  };
+
+  const hour = weather ? getCurrentIndex(weather) : 0;
+  const code = weather?.data_day.pictocode?.[0] ?? 0;
+  const isDay = weather?.data_1h.isdaylight?.[hour] !== 0;
+  const { Icon, description, color } = getWeatherInfo(code, isDay);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+    <div className="min-h-screen bg-linear-to-b from-sky-400 to-blue-500 p-4 flex items-center justify-center">
+      <div className="w-full max-w-md space-y-4">
+        <form action={handleSearch} className="flex items-center gap-2">
+          <Input
+            name="city"
+            type="text"
+            placeholder="Enter city name..."
+            className="bg-white/90"
+            required
+          />
+          <SubmitButton />
+        </form>
+
+        {notFound && (
+          <div className="rounded-lg bg-white/80 px-4 py-3 text-center text-sm text-red-600">
+            City not found
+          </div>
+        )}
+
+        {weather && (
+          <div>
+            <Card className="bg-white/50 backdrop-blur">
+              <CardContent className="p-6">
+                <div className="text-center mb-4">
+                  <h2 className="text-2xl font-bold">
+                    {weather.metadata.name || city}
+                  </h2>
+                  <div className="flex items-center justify-center gap-2 mt-2">
+                    <Icon className={`h-15 w-15 drop-shadow-md ${color}`} />
+                    <div className="text-5xl font-bold">
+                      {Math.round(weather.data_1h.temperature[hour])}°C
+                    </div>
+                  </div>
+                  <div className="text-gray-500 mt-1 capitalize">
+                    {description}
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4 mt-6">
+                  <div className="text-center">
+                    <Thermometer className="w-6 h-6 mx-auto text-orange-500" />
+                    <div className="mt-2 text-sm text-gray-500">Feels like</div>
+                    <div className="font-semibold">
+                      {Math.round(weather.data_1h.felttemperature?.[hour] ?? 0)}
+                      °C
+                    </div>
+                  </div>
+
+                  <div className="text-center">
+                    <Droplets className="w-6 h-6 mx-auto text-blue-500" />
+                    <div className="mt-2 text-sm text-gray-500">Humidity</div>
+                    <div className="font-semibold">
+                      {Math.round(weather.data_1h.relativehumidity?.[hour] ?? 0)}
+                      %
+                    </div>
+                  </div>
+
+                  <div className="text-center">
+                    <Wind className="w-6 h-6 mx-auto text-teal-500" />
+                    <div className="mt-2 text-sm text-gray-500">Wind Speed</div>
+                    <div className="font-semibold">
+                      {Math.round(weather.data_1h.windspeed?.[hour] ?? 0)}
+                      km/h
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
