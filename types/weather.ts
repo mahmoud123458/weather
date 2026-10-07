@@ -62,3 +62,14 @@ export interface WeatherData {
   data_1h: HourlyData;
   data_day: DailyData;
 }
+
+// نتيجة اقتراح مدينة من الـ geocoding
+export interface CitySuggestion {
+  id: number;
+  name: string;
+  country?: string;
+  admin1?: string;
+  latitude: number;
+  longitude: number;
+  elevation?: number;
+}
