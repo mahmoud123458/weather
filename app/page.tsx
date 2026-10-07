@@ -17,6 +17,9 @@ import {
   Wind,
   Loader2,
   MapPin,
+  Plus,
+  Star,
+  X,
 } from "lucide-react";
 import { getWeatherData, searchCities } from "./actions";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -24,9 +27,9 @@ import { CitySuggestion, WeatherData } from "@/types/weather";
 import { Card, CardContent } from "@/components/ui/card";
 
 const STORAGE_KEY = "weather:last";
+const FAVORITES_KEY = "weather:favorites";
 const CACHE_TTL = 30 * 60 * 1000; // 30 دقيقة
 
-// حفظ آخر مدينة وبياناتها
 const saveLast = (place: CitySuggestion, data: WeatherData) => {
   try {
     localStorage.setItem(
@@ -36,12 +39,10 @@ const saveLast = (place: CitySuggestion, data: WeatherData) => {
   } catch {}
 };
 
-// قمر مملي من جوا
 function MoonFilled({ className }: { className?: string }) {
   return <Moon className={className} fill="currentColor" />;
 }
 
-// شمس صفراء + سحابة بيضا
 function CloudSunColored({ className }: { className?: string }) {
   return (
     <div className={`relative ${className ?? ""}`}>
@@ -54,7 +55,6 @@ function CloudSunColored({ className }: { className?: string }) {
   );
 }
 
-// قمر مملي + سحابة بيضا
 function CloudMoonColored({ className }: { className?: string }) {
   return (
     <div className={`relative ${className ?? ""}`}>
@@ -70,7 +70,6 @@ function CloudMoonColored({ className }: { className?: string }) {
   );
 }
 
-// نجوم الخلفية بالليل
 function Stars() {
   const stars = useMemo(
     () =>
@@ -156,7 +155,6 @@ const getWeatherInfo = (code: number, isDay: boolean) => {
   }
 };
 
-// بيرجع index الساعة الحالية في توقيت المدينة
 const getCurrentIndex = (w: WeatherData) => {
   const offset = w.metadata.utc_timeoffset ?? 0;
   const local =
@@ -168,7 +166,6 @@ const getCurrentIndex = (w: WeatherData) => {
   return i === -1 ? 0 : i;
 };
 
-// بيرجع index الساعة 12 الضهر في اليوم المختار
 const getDayIndex = (w: WeatherData, dayIndex: number) => {
   const date = w.data_day.time[dayIndex];
   if (!date) return 0;
@@ -178,7 +175,6 @@ const getDayIndex = (w: WeatherData, dayIndex: number) => {
   return first === -1 ? 0 : first;
 };
 
-// اسم اليوم من تاريخ بصيغة 2026-10-07
 const getDayName = (date: string) =>
   new Date(`${date}T00:00:00`).toLocaleDateString("en-US", {
     weekday: "short",
@@ -205,7 +201,7 @@ function SubmitButton({ loading }: { loading: boolean }) {
 
 export default function Home() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
-  const [selectedDay, setSelectedDay] = useState(0); // 0 = دلوقتي
+  const [selectedDay, setSelectedDay] = useState(0);
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -213,41 +209,62 @@ export default function Home() {
   const [suggestions, setSuggestions] = useState<CitySuggestion[]>([]);
   const [open, setOpen] = useState(false);
 
+  const [favorites, setFavorites] = useState<CitySuggestion[]>([]);
+  const [currentPlace, setCurrentPlace] = useState<CitySuggestion | null>(null);
+
   const requestId = useRef(0);
   const selectedName = useRef("");
 
-  // استرجاع آخر مدينة بعد الـ reload
+  // تحميل المفضلة وإعطاء الأولوية لآخر بحث أو أول عنصر في المفضلة
   useEffect(() => {
     try {
+      const favsRaw = localStorage.getItem(FAVORITES_KEY);
+      const favs: CitySuggestion[] = favsRaw ? JSON.parse(favsRaw) : [];
+      setFavorites(favs);
+
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
+      if (raw) {
+        const saved: {
+          place: CitySuggestion;
+          data: WeatherData;
+          savedAt: number;
+        } = JSON.parse(raw);
 
-      const saved: {
-        place: CitySuggestion;
-        data: WeatherData;
-        savedAt: number;
-      } = JSON.parse(raw);
+        selectedName.current = saved.place.name;
+        setQuery(saved.place.name);
+        setCurrentPlace(saved.place);
+        setWeather(saved.data);
 
-      selectedName.current = saved.place.name;
-      setQuery(saved.place.name);
-      setWeather(saved.data); // بنعرض المحفوظ فورًا
-
-      // لو البيانات قديمة نحدثها في الخلفية من غير ما نمسح اللي ظاهر
-      if (Date.now() - saved.savedAt > CACHE_TTL) {
-        getWeatherData(saved.place).then(({ data }) => {
-          if (data) {
-            setWeather(data);
-            saveLast(saved.place, data);
-          }
-        });
+        if (Date.now() - saved.savedAt > CACHE_TTL) {
+          getWeatherData(saved.place).then(({ data }) => {
+            if (data) {
+              setWeather(data);
+              saveLast(saved.place, data);
+            }
+          });
+        }
+      } else if (favs.length > 0) {
+        // لو مفيش آخر بحث، افتح أول بلد اتضاف في المفضلة مباشرة
+        selectPlace(favs[0]);
       }
     } catch {}
   }, []);
 
-  // autocomplete بعد ما اليوزر يوقف كتابة 300ms
   useEffect(() => {
     const id = ++requestId.current;
     const q = query.trim();
+
+    if (q.length === 0) {
+      setWeather(null);
+      setCurrentPlace(null);
+      selectedName.current = "";
+      setSuggestions([]);
+      setOpen(false);
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch {}
+      return;
+    }
 
     if (q.length < 2 || q === selectedName.current) {
       setSuggestions([]);
@@ -268,6 +285,7 @@ export default function Home() {
   const selectPlace = async (place: CitySuggestion) => {
     selectedName.current = place.name;
     setQuery(place.name);
+    setCurrentPlace(place);
     setOpen(false);
     setSuggestions([]);
     setLoading(true);
@@ -286,7 +304,6 @@ export default function Home() {
     const q = query.trim();
     if (!q) return;
 
-    // لو فيه اقتراحات ناخد أول واحدة (أقرب نتيجة)
     if (suggestions.length > 0) {
       selectPlace(suggestions[0]);
       return;
@@ -300,16 +317,44 @@ export default function Home() {
       setWeather(null);
       setNotFound(true);
       setLoading(false);
+      setCurrentPlace(null);
     }
   };
 
-  // الساعة الحالية (للخلفية)، والساعة المعروضة (حسب اليوم المختار)
+  const toggleFavorite = () => {
+    if (!currentPlace) return;
+    try {
+      const exists = favorites.some((f) => f.id === currentPlace.id);
+      let updated: CitySuggestion[];
+      if (exists) {
+        updated = favorites.filter((f) => f.id !== currentPlace.id);
+      } else {
+        updated = [...favorites, currentPlace];
+      }
+      setFavorites(updated);
+      localStorage.setItem(FAVORITES_KEY, JSON.stringify(updated));
+    } catch {}
+  };
+
+  const removeFavorite = (e: React.MouseEvent, id: number) => {
+    e.stopPropagation();
+    try {
+      const updated = favorites.filter((f) => f.id !== id);
+      setFavorites(updated);
+      localStorage.setItem(FAVORITES_KEY, JSON.stringify(updated));
+    } catch {}
+  };
+
+  const isCurrentFavorite = currentPlace
+    ? favorites.some((f) => f.id === currentPlace.id)
+    : false;
+
   const nowIdx = weather ? getCurrentIndex(weather) : 0;
   const viewIdx =
     weather && selectedDay > 0 ? getDayIndex(weather, selectedDay) : nowIdx;
 
-  const isDay = weather?.data_1h.isdaylight?.[nowIdx] !== 0; // الخلفية والكارت
-  const viewIsDay = weather?.data_1h.isdaylight?.[viewIdx] !== 0; // الأيقونة
+  const isDay = weather?.data_1h.isdaylight?.[nowIdx] !== 0;
+  const viewIsDay = weather?.data_1h.isdaylight?.[viewIdx] !== 0;
 
   const code = weather?.data_day.pictocode?.[selectedDay] ?? 0;
   const { Icon, description, color } = getWeatherInfo(code, viewIsDay);
@@ -329,6 +374,37 @@ export default function Home() {
       {!isDay && <Stars />}
 
       <div className="relative z-10 w-full max-w-md space-y-4">
+        {favorites.length > 0 && (
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+            {favorites.map((fav) => {
+              const isSelected = currentPlace?.id === fav.id;
+              return (
+                <button
+                  key={fav.id}
+                  type="button"
+                  onClick={() => selectPlace(fav)}
+                  className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors shadow-sm ${
+                    isSelected
+                      ? "bg-white text-gray-900 font-semibold"
+                      : isDay
+                      ? "bg-white/40 text-white hover:bg-white/60"
+                      : "bg-white/15 text-white hover:bg-white/25"
+                  }`}
+                >
+                  <MapPin className="h-3 w-3" />
+                  <span>{fav.name}</span>
+                  <span
+                    onClick={(e) => removeFavorite(e, fav.id)}
+                    className="ml-1 rounded-full p-0.5 hover:bg-black/10"
+                  >
+                    <X className="h-3 w-3" />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="flex items-center gap-2">
           <div className="relative flex-1">
             <Input
@@ -374,6 +450,25 @@ export default function Home() {
               </ul>
             )}
           </div>
+
+          {currentPlace && (
+            <Button
+              type="button"
+              variant="outline"
+              title={isCurrentFavorite ? "Remove from favorites" : "Add to favorites"}
+              onClick={toggleFavorite}
+              className={`bg-white/90 hover:bg-white ${
+                isCurrentFavorite ? "text-yellow-500 border-yellow-400" : "text-gray-700"
+              }`}
+            >
+              {isCurrentFavorite ? (
+                <Star className="h-4 w-4 fill-current" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
+            </Button>
+          )}
+
           <SubmitButton loading={loading} />
         </form>
 
