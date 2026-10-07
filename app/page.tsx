@@ -215,7 +215,7 @@ export default function Home() {
   const requestId = useRef(0);
   const selectedName = useRef("");
 
-  // تحميل المفضلة وإعطاء الأولوية لآخر بحث أو أول عنصر في المفضلة
+  // الأولوية لآخر بحث، ولو مفيش شوف أول بلد في المفضلة، لو مفيش خالص سيب الدنيا فاضية
   useEffect(() => {
     try {
       const favsRaw = localStorage.getItem(FAVORITES_KEY);
@@ -244,7 +244,6 @@ export default function Home() {
           });
         }
       } else if (favs.length > 0) {
-        // لو مفيش آخر بحث، افتح أول بلد اتضاف في المفضلة مباشرة
         selectPlace(favs[0]);
       }
     } catch {}
@@ -353,8 +352,8 @@ export default function Home() {
   const viewIdx =
     weather && selectedDay > 0 ? getDayIndex(weather, selectedDay) : nowIdx;
 
-  const isDay = weather?.data_1h.isdaylight?.[nowIdx] !== 0;
-  const viewIsDay = weather?.data_1h.isdaylight?.[viewIdx] !== 0;
+  const isDay = weather ? weather.data_1h.isdaylight?.[nowIdx] !== 0 : true;
+  const viewIsDay = weather ? weather.data_1h.isdaylight?.[viewIdx] !== 0 : true;
 
   const code = weather?.data_day.pictocode?.[selectedDay] ?? 0;
   const { Icon, description, color } = getWeatherInfo(code, viewIsDay);
