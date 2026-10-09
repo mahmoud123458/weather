@@ -293,13 +293,11 @@ export default function Home() {
   const [currentPlace, setCurrentPlace] = useState<CitySuggestion | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
 
-  // مراجع وحالات السحب بالكليك (Drag to Scroll) لقسم الأسبوع
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isDraggingWeek, setIsDraggingWeek] = useState(false);
   const [startXWeek, setStartXWeek] = useState(0);
   const [scrollLeftWeek, setScrollLeftWeek] = useState(0);
 
-  // مراجع وحالات السحب بالكليك (Drag to Scroll) لقسم الساعة
   const hourlyScrollRef = useRef<HTMLDivElement>(null);
   const [isDraggingHourly, setIsDraggingHourly] = useState(false);
   const [startXHourly, setStartXHourly] = useState(0);
@@ -505,7 +503,7 @@ export default function Home() {
   const dayMin = weather?.data_day.temperature_min?.[selectedDay];
 
   const precipitationProb = weather?.data_1h.precipitation_probability?.[viewIdx] ?? weather?.data_day.precipitation_probability?.[selectedDay] ?? 0;
-  const pressure = weather?.data_1h.pressure?.[viewIdx] ?? 1013;
+  const pressure = weather?.data_1h.pressure?.[viewIdx] ?? weather?.data_1h.sealevelpressure?.[viewIdx] ?? 1013;
   
   const sunriseTime = formatTime12h(weather?.data_day.sunrise?.[selectedDay], "05:45 AM");
   const sunsetTime = formatTime12h(weather?.data_day.sunset?.[selectedDay], "06:15 PM");
@@ -668,7 +666,6 @@ export default function Home() {
                   )}
                 </div>
 
-                {/* قسم توقعات الطقس بالساعة مع تفعيل السكرول بالسحب بالكليك */}
                 <div className={`mb-4 border-t pt-3 ${isDay ? "border-black/10" : "border-white/10"}`}>
                   <h3 className={`mb-2 text-xs sm:text-sm font-semibold ${textMuted}`}>Hourly Forecast</h3>
                   <div 
@@ -719,7 +716,6 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* شبكة تفاصيل الطقس */}
                 <div className="grid grid-cols-3 gap-2 sm:gap-3">
                   <div className="text-center bg-white/10 p-2 rounded-lg">
                     <Thermometer className="w-4 h-4 sm:w-5 sm:h-5 mx-auto text-orange-500" />
@@ -754,7 +750,7 @@ export default function Home() {
                   <div className="text-center bg-white/10 p-2 rounded-lg">
                     <Gauge className="w-4 h-4 sm:w-5 sm:h-5 mx-auto text-purple-400" />
                     <div className={`mt-1 text-[10px] sm:text-xs ${textMuted}`}>Pressure</div>
-                    <div className="font-semibold text-xs sm:text-sm">{pressure} hPa</div>
+                    <div className="font-semibold text-xs sm:text-sm">{Math.round(pressure)} hPa</div>
                   </div>
 
                   <div className="text-center bg-white/10 p-2 rounded-lg">

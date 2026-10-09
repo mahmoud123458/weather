@@ -36,6 +36,7 @@ export interface HourlyData {
   isdaylight?: number[];
   uvindex?: number[];
   sealevelpressure?: number[];
+  pressure?: number[]; // تم الإضافة هنا
 }
 
 export interface DailyData {
@@ -54,6 +55,8 @@ export interface DailyData {
   relativehumidity_mean?: number[];
   pictocode?: number[];
   uvindex?: number[];
+  sunrise?: string[]; // تم الإضافة هنا
+  sunset?: string[];  // تم الإضافة هنا
 }
 
 export interface WeatherData {
